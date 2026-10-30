@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ZERO OS</title>
+<meta name="description" content="ZERO OS — a private personal operating system for habits, time, plans and money.">
+<meta name="theme-color" content="#07070A">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ZERO OS">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/styles.css">
+<style>html{background:#07070A}body{background:#07070A}</style>
+</head>
+<body data-area="home">
+<noscript><p style="color:#fff;padding:24px;font-family:sans-serif">ZERO OS needs JavaScript to run.</p></noscript>
+
+<div id="splash" aria-hidden="true">
+  <div class="lg">
+    <svg class="mark" viewBox="0 0 92 108"><ellipse cx="46" cy="54" rx="36" ry="46"/><line x1="28" y1="78" x2="64" y2="30"/></svg>
+    <div class="wm">ZERO OS</div>
+    <div class="tg">START FROM ZERO</div>
+  </div>
+</div>
+
+<!-- Load order matters: config → icons → libraries → core → ui → logic → sync → reminders → views → app -->
+<script src="config/config.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/vendor/chart.umd.min.js"></script>
+<script src="js/vendor/supabase.js"></script>
+<script src="js/core.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/logic.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/reminders.js"></script>
+<script src="js/push.js"></script>
+<script src="js/views/common.js"></script>
+<script src="js/views/habits.js"></script>
+<script src="js/views/schedule.js"></script>
+<script src="js/views/plans.js"></script>
+<script src="js/views/money.js"></script>
+<script src="js/views/progress.js"></script>
+<script src="js/views/journal.js"></script>
+<script src="js/views/home.js"></script>
+<script src="js/views/settings.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
