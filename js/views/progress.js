@@ -20,7 +20,7 @@
   }
   // Apple-Fitness-style concentric rings
   function rings(list, size) {
-    var s = size, st = 15, gap = 5, svg = '';
+    var s = size, st = Math.max(7, Math.round(s / 8)), gap = Math.max(3, Math.round(s / 24)), svg = '';
     list.forEach(function (r, i) {
       var rad = (s - st) / 2 - i * (st + gap), c = 2 * Math.PI * rad;
       svg += '<circle class="tr" cx="' + s / 2 + '" cy="' + s / 2 + '" r="' + rad + '" stroke-width="' + st + '" style="stroke:' + r.color + '22;fill:none"/><circle class="pg" cx="' + s / 2 + '" cy="' + s / 2 + '" r="' + rad + '" stroke-width="' + st + '" stroke="' + r.color + '" stroke-dasharray="' + c + '" stroke-dashoffset="' + c + '" data-v="' + Z.clamp(r.value, 0, 1) + '" data-c="' + c + '" style="--rc:' + r.color + ';transition-delay:' + i * 150 + 'ms"/>';

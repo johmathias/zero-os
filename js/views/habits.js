@@ -2,7 +2,19 @@
 (function () {
   'use strict';
   var Z = window.Z, U = Z.ui, ic = Z.ic, S = Z.store, L = Z.logic, esc = Z.esc, F = Z.forms;
-  var tab = 'habits', selDate = null, calMonth = null, showArchived = false;
+  var tab = 'habits', selDate = null, calMonth = null, showArchived = false, showStats = false;
+  var HELP = {
+    habits: ['Daily habits', 'Things you want to <b>do</b> regularly — like “Pray”, “Exercise” or “Read 20 minutes”. Tap the circle each day you do it. Pick days of the week when you add one.'],
+    behaviour: ['Quit tracker', 'Things you want to <b>stop or do less</b>. Add one, then tap <b>Clean today</b> every day you manage it. If you slip, tap <b>Record a slip</b> — no shame: your total stays, only the current run restarts.'],
+    challenge: ['100-day challenge', 'One big goal for 100 days. Tap <b>Check in</b> once a day. Missing a day never resets it — every day you complete counts.']
+  };
+  function helpDone() { return Z.meta.get('helpDone', {}); }
+  function helpCard(n) {
+    if (helpDone()[tab]) return '';
+    var h = HELP[tab];
+    return '<div class="helpcard ' + Z.rz(n || 1) + '"><span style="color:var(--acc);margin-top:1px">' + ic('lightbulb') + '</span><div class="grow"><p><b>' + h[0] + '.</b> ' + h[1] + '</p></div><button class="x" data-act="hHelpHide" aria-label="Hide tip">' + ic('x') + '</button></div>';
+  }
+  var IDEAS = ['Drink water', 'Pray', 'Exercise', 'Read 20 min', 'Study 1 hour', 'Sleep by 10pm'];
 
   function today() { return Z.today(); }
   function sel() { return selDate || today(); }
@@ -27,12 +39,13 @@
   function habitsTab() {
     var date = sel(), all = L.habits(), t = today();
     if (!all.length && !L.habits(true).length) {
-      return '<div class="card ' + Z.rz(1) + '">' + U.empty('flame', 'Build your first habit', 'Small daily actions become who you are. Start with one you can do even on a bad day.', { act: 'hNew', label: 'Create a habit' }) + '</div>';
+      return helpCard(1) + '<div class="card ' + Z.rz(2) + '">' + U.empty('flame', 'Build your first habit', 'Pick one below to start, or make your own. Choose something you can do even on a bad day.', { act: 'hNew', label: 'Create my own' }) +
+        '<div class="pills" style="justify-content:center;margin-top:14px">' + IDEAS.map(function (n) { return '<button class="pill2" data-act="hIdea" data-name="' + esc(n) + '">' + ic('plus') + esc(n) + '</button>'; }).join('') + '</div></div>';
     }
     var day = L.dayHabits(date), week = L.rangeRate(Z.weekStart(t), t), month = L.rangeRate(Z.monthStart(t), t);
     var notToday = all.filter(function (h) { return !L.habitScheduled(h, date); });
     var bestNow = all.reduce(function (m, h) { return Math.max(m, L.habitStreak(h)); }, 0);
-    var html = '';
+    var html = helpCard(0);
     html += '<section class="card hero ' + Z.rz(1) + '"><div class="hero-rings">' +
       U.ring({ size: 112, stroke: 12, value: day.rate, color: '#FF6B3D', mid: '<div class="mid" style="font-size:26px;position:static">' + day.done + '<span class="dim" style="font-size:15px;font-weight:600">/' + day.total + '</span></div>' }) +
       '<div class="grow"><div class="label">' + (date === t ? 'Today' : Z.fmtLong(date)) + '</div><div class="mid" style="margin:6px 0 4px">' +
@@ -43,6 +56,8 @@
       (day.list.length ? '<div class="list">' + day.list.map(function (h, i) { return habitRow(h, date, 4 + i); }).join('') + '</div>' : '<p class="muted small">No habits scheduled for this day.</p>') +
       (date > t ? '<p class="xs dim" style="margin-top:10px">This day hasn’t happened yet — you can tick it off when it does.</p>' : '') + '</section>';
     if (notToday.length) html += '<section class="card flat ' + Z.rz(5) + '"><div class="label" style="margin-bottom:8px">Not scheduled on this day</div>' + notToday.map(function (h) { return '<button class="item tap" data-act="hDetail" data-id="' + h.id + '"><span class="avatar" style="--c:' + (h.color || '#FF6B3D') + ';width:34px;height:34px;border-radius:11px">' + ic(h.icon || 'flame') + '</span><div class="grow"><div class="ti" style="font-size:15px;color:var(--ink2)">' + esc(h.name) + '</div></div>' + ic('chevron-right') + '</button>'; }).join('') + '</section>';
+    html += '<button class="btn block ' + Z.rz(6) + '" data-act="hStats">' + ic(showStats ? 'chevron-up' : 'chart-column') + (showStats ? 'Hide stats & calendar' : 'Show stats & calendar') + '</button>';
+    if (showStats) {
     html += '<div class="grid2 ' + Z.rz(6) + '"><div class="card"><div class="label">This week</div><div class="big" style="margin-top:10px;font-size:34px">' + U.count(week.rate * 100, 'pct') + '</div><div class="small dim" style="margin-top:6px">' + week.done + ' of ' + week.due + ' done</div></div>' +
       '<div class="card"><div class="label">This month</div><div class="big" style="margin-top:10px;font-size:34px">' + U.count(month.rate * 100, 'pct') + '</div><div class="small dim" style="margin-top:6px">' + month.done + ' of ' + month.due + ' done</div></div></div>';
     html += '<section class="card ' + Z.rz(7) + '"><div class="head"><div class="label">' + ic('chart-column') + 'Last 14 days</div></div><div class="chartbox sm"><canvas id="hchart"></canvas></div></section>';
@@ -55,6 +70,7 @@
           return { style: past && r.total ? '--lv:' + (r.rate * .55).toFixed(2) : '', inner: '<span class="dots">' + (past && r.total && r.done === r.total ? '<i></i>' : '') + '</span>' };
         }
       }) + '</div><div class="legend"><span><i style="--c:var(--acc);opacity:.25"></i>Some</span><span><i style="--c:var(--acc);opacity:.6"></i>Most</span><span>Dot = all habits done</span></div></section>';
+    }
     // archived
     var arch = L.habits(true).filter(function (h) { return h.archived; });
     if (arch.length) html += '<section class="card flat ' + Z.rz(9) + '"><button class="row between" style="width:100%" data-act="hArchToggle"><span class="label">Archived (' + arch.length + ')</span>' + ic(showArchived ? 'chevron-up' : 'chevron-down') + '</button><div class="expand ' + (showArchived ? 'open' : '') + '"><div>' +
@@ -70,8 +86,8 @@
   }
   function behaviourTab() {
     var bs = L.behaviours(), html = '';
-    html += '<div class="card flat ' + Z.rz(1) + '" style="display:flex;gap:12px;align-items:flex-start"><span class="avatar" style="--c:var(--good)">' + ic('shield-check') + '</span><div><div style="font-weight:640">Private & judgement-free</div><div class="small muted" style="margin-top:3px">Track things you want to stop or reduce. A slip never erases your progress — your total clean days stay, and only the current run starts again.</div></div></div>';
-    if (!bs.length) return html + '<div class="card ' + Z.rz(2) + '">' + U.empty('shield', 'Nothing tracked yet', 'Add a behaviour you want to reduce or stop. Only you can see this, and it stays on your device and your own account.', { act: 'bNew', label: 'Add a behaviour' }) + '</div>';
+    html += helpCard(1) + '<button class="urgebtn ' + Z.rz(2) + '" data-act="urge"><span style="color:var(--c-habits)">' + ic('wind') + '</span><span>I’m having an urge<small>A 10-minute pause with breathing and a kind message</small></span></button>';
+    if (!bs.length) return html + '<div class="card ' + Z.rz(2) + '">' + U.empty('shield', 'Nothing tracked yet', 'Add one thing you want to stop or do less, like “Late-night scrolling”. Only you can see this.', { act: 'bNew', label: 'Add something to quit' }) + '</div>';
     bs.forEach(function (b, i) {
       var st = L.behaviourStats(b), t = today(), lg = st.todayLog;
       html += '<section class="card ' + Z.rz(2 + i) + '"><div class="head"><h3>' + esc(b.name) + '</h3><button class="iconbtn sm" data-act="bMenu" data-id="' + b.id + '" aria-label="More">' + ic('ellipsis') + '</button></div>' +
@@ -152,9 +168,9 @@
 
   /* ---------- CHALLENGE TAB ---------- */
   function challengeTab() {
-    var c = L.challenge(), html = '';
+    var c = L.challenge(), html = helpCard(0);
     if (!c) {
-      return '<div class="card hero ' + Z.rz(1) + '"><div class="empty"><div class="orb">' + ic('mountain') + '</div><h4>Your 100-day challenge</h4><p>Pick one meaningful goal and show up for it every day. Missed a day? No punishment — just carry on.</p><button class="btn primary" data-act="cSetup">' + ic('play') + 'Start a challenge</button></div></div>';
+      return html + '<div class="card hero ' + Z.rz(1) + '"><div class="empty"><div class="orb">' + ic('mountain') + '</div><h4>Your 100-day challenge</h4><p>Pick one meaningful goal and show up for it every day. Missed a day? No punishment — just carry on.</p><button class="btn primary" data-act="cSetup">' + ic('play') + 'Start a challenge</button></div></div>';
     }
     var t = today(), status = c.notStarted ? 'Starts ' + Z.fmt(c.startDate) : c.finished ? 'Challenge finished' : 'Day ' + c.dayNo + ' of ' + c.days;
     html += '<section class="card hero ' + Z.rz(1) + '"><div class="head"><div><div class="label">' + esc(c.name) + '</div></div><button class="iconbtn sm" data-act="cMenu" aria-label="More">' + ic('ellipsis') + '</button></div>' +
@@ -240,6 +256,10 @@
   /* ---------- actions ---------- */
   var A = Z.actions;
   A.hNew = function () { F.habit(); };
+  A.hIdea = function (el) { var n = el.dataset.name; S.put('habits', { name: n, color: '#FF6B3D', icon: 'flame', days: [], startDate: today(), reminder: '', archived: false }); U.toast('Added “' + n + '”'); };
+  A.hStats = function () { showStats = !showStats; Z.refresh(); };
+  A.hHelpHide = function () { var d = Object.assign({}, helpDone()); d[tab] = 1; Z.meta.set('helpDone', d); Z.refresh(); };
+  A.hHelpShow = function () { var d = Object.assign({}, helpDone()); delete d[tab]; Z.meta.set('helpDone', d); Z.refresh(); };
   A.hDate = function (el) { selDate = el.dataset.date; calMonth = Z.monthStart(selDate); Z.refresh(); };
   A.hMonth = function (el) { calMonth = Z.addMonths(calMonth || Z.monthStart(sel()), +el.dataset.d); Z.refresh(); };
   A.hArchToggle = function () { showArchived = !showArchived; Z.refresh(); };
@@ -281,7 +301,7 @@
   };
 
   function bodyHtml() { return tab === 'habits' ? habitsTab() : tab === 'behaviour' ? behaviourTab() : challengeTab(); }
-  function subFor() { return tab === 'habits' ? 'Show up for yourself today.' : tab === 'behaviour' ? 'Private. Encouraging. Yours.' : 'One day at a time.'; }
+  function subFor() { return tab === 'habits' ? 'Things to do every day' : tab === 'behaviour' ? 'Things to stop — private to you' : 'One big goal, one day at a time'; }
   function hook(root) {
     var canvas = Z.$('#hchart', root);
     if (canvas) {
@@ -298,8 +318,8 @@
     title: 'Habits', area: 'habits',
     render: function () {
       var body = bodyHtml();
-      return Z.hd({ eyebrow: 'Discipline', title: 'Habits', sub: subFor() }) +
-        '<div class="rz" style="--n:1;margin-bottom:16px">' + U.seg('hseg', [{ v: 'habits', label: 'Habits' }, { v: 'behaviour', label: 'Behaviour' }, { v: 'challenge', label: 'Challenge' }], tab) + '</div><div class="cols" id="hbody">' + body + '</div>';
+      return Z.hd({ eyebrow: 'Discipline', title: 'Habits', sub: subFor(), acts: '<button class="iconbtn glass" data-act="hHelpShow" aria-label="Explain this page">' + ic('circle-help') + '</button>' }) +
+        '<div class="rz" style="--n:1;margin-bottom:16px">' + U.seg('hseg', [{ v: 'habits', label: 'Daily' }, { v: 'behaviour', label: 'Quit' }, { v: 'challenge', label: '100 days' }], tab) + '</div><div class="cols" id="hbody">' + body + '</div>';
     },
     mount: function (root) {
       hook(root);

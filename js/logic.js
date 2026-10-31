@@ -252,4 +252,24 @@
       journal: S.all('journal').filter(function (j) { return j.date >= monthStart && j.date <= end; }).length };
   };
   L.hasAnyData = function () { return Z.COLS.some(function (c) { return c !== 'settings' && S.all(c).length > 0; }); };
+
+  /* things that need a look: shown on Home and as small badges on the tab bar */
+  L.attention = function () {
+    var out = [], t = Z.today(), hour = Math.floor(Z.nowMin() / 60), i;
+    var over = L.openTasks().filter(function (x) { return x.due && x.due < t; });
+    if (over.length) out.push({ key: 'tasks', tab: 'plans', icon: 'triangle-alert', color: '#FF5C6C', count: over.length, title: over.length + (over.length === 1 ? ' task is overdue' : ' tasks are overdue'), sub: over[0].title + (over.length > 1 ? ' and more' : ''), act: 'go', arg: 'plans' });
+    var due = Z.reminders ? Z.reminders.dueNow() : [];
+    if (due.length) out.push({ key: 'due', tab: 'schedule', icon: 'bell-ring', color: '#3DB8FF', count: due.length, title: due.length + (due.length === 1 ? ' reminder passed today' : ' reminders passed today'), sub: due[0].title, act: 'go', arg: 'schedule' });
+    var y = Z.addDays(t, -1), yh = L.dayHabits(y);
+    if (yh.total && yh.done < yh.total) out.push({ key: 'yhab', tab: 'habits', icon: 'flame', color: '#FF6B3D', count: yh.total - yh.done, title: (yh.total - yh.done) + ' habit' + (yh.total - yh.done === 1 ? '' : 's') + ' missed yesterday', sub: 'You can still tick them off', act: 'go', arg: 'habits' });
+    var th = L.dayHabits(t);
+    if (th.total && th.done < th.total && hour >= 18) out.push({ key: 'thab', tab: 'habits', icon: 'flame', color: '#FF6B3D', count: th.total - th.done, title: (th.total - th.done) + ' habit' + (th.total - th.done === 1 ? '' : 's') + ' left tonight', sub: 'Finish the day strong', act: 'go', arg: 'habits' });
+    var c = L.challenge();
+    if (c && !c.notStarted && !c.finished && !c.doneToday && hour >= 12) out.push({ key: 'chal', tab: 'habits', icon: 'mountain', color: '#FFC93D', count: 1, title: 'Day ' + c.dayNo + ' is not checked in', sub: c.name, act: 'cDay', date: t });
+    var dl = L.upcomingDeadlines(5, 2);
+    if (dl.length) out.push({ key: 'uni', tab: 'plans', icon: 'graduation-cap', color: '#B565F5', count: dl.length, title: dl[0].title + (Z.diff(t, dl[0].date) === 0 ? ' is today' : Z.diff(t, dl[0].date) === 1 ? ' is tomorrow' : ' in 2 days'), sub: dl.length > 1 ? '+ ' + (dl.length - 1) + ' more soon' : 'University', act: 'go', arg: 'plans' });
+    var bs = L.accounts().length ? L.budgetStatus(Z.monthStart(t)) : [];
+    for (i = 0; i < bs.length; i++) if (bs[i].over) { out.push({ key: 'bud', tab: 'money', icon: 'wallet', color: '#FF6B8A', count: 1, title: 'Over budget this month', sub: bs[i].b.category || 'Monthly budget', act: 'go', arg: 'money' }); break; }
+    return out;
+  };
 })();

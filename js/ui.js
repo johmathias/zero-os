@@ -68,8 +68,8 @@
   // keep sheets above the on-screen keyboard
   if (window.visualViewport) {
     var vv = window.visualViewport;
-    var fit = function () { document.documentElement.style.setProperty('--vvh', vv.height + 'px'); };
-    vv.addEventListener('resize', fit); fit();
+    var fit = function () { var r = document.documentElement.style; r.setProperty('--vvh', vv.height + 'px'); r.setProperty('--vvt', vv.offsetTop + 'px'); };
+    vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); fit();
   }
   document.addEventListener('focusin', function (e) {
     if (e.target.closest && e.target.closest('.sh-body') && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) {
@@ -202,11 +202,14 @@
     C.defaults.font.family = getComputedStyle(document.body).fontFamily;
     C.defaults.color = 'rgba(245,245,247,.55)';
     C.defaults.borderColor = 'rgba(255,255,255,.07)';
+    var userOpt = cfg.options || {}, userPl = userOpt.plugins || {};
     cfg.options = Object.assign({
       responsive: true, maintainAspectRatio: false,
       animation: (Z.reduced || Z.entering === false) ? false : { duration: 1000, easing: 'easeOutQuart' },
       plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(30,30,38,.95)', borderColor: 'rgba(255,255,255,.15)', borderWidth: 1, padding: 10, cornerRadius: 12, titleColor: '#fff', bodyColor: '#ddd', displayColors: true, boxPadding: 4 } }
-    }, cfg.options || {});
+    }, userOpt);
+    var dp = { legend: { display: false } }; cfg.options.plugins = Object.assign({}, dp, cfg.options.plugins);
+    if (userPl.tooltip) cfg.options.plugins.tooltip = Object.assign({ backgroundColor: 'rgba(30,30,38,.95)', borderColor: 'rgba(255,255,255,.15)', borderWidth: 1, padding: 10, cornerRadius: 12, titleColor: '#fff', bodyColor: '#ddd', displayColors: true, boxPadding: 4 }, userPl.tooltip);
     if (cfg.type !== 'doughnut' && cfg.type !== 'pie') {
       cfg.options.scales = cfg.options.scales || {
         x: { grid: { display: false }, border: { display: false }, ticks: { maxRotation: 0 } },

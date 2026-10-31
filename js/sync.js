@@ -15,6 +15,33 @@
   Y.state = function () { return state; };
   Y.error = function () { return lastError; };
   Y.lastSyncAt = function () { return lastSyncAt; };
+  // plain-English checks of the cloud set-up (used by Settings → Check connection)
+  Y.diagnose = function () {
+    var out = [], url = (Z.cfg.SUPABASE_URL || ''), key = (Z.cfg.SUPABASE_ANON_KEY || '');
+    function add(ok, title, fix) { out.push({ ok: ok, title: title, fix: fix || '' }); }
+    add(!!window.ZERO_CONFIG, 'config.js was found', 'The file config/config.js did not load. Upload it to GitHub (folder "config") and refresh.');
+    add(!!url, 'Project URL is filled in', 'Open config/config.js on GitHub and paste your Project URL between the quotes after SUPABASE_URL.');
+    if (url) add(/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(url), 'Project URL looks right', 'It should look like https://abcdxyz.supabase.co — no spaces, no /rest/v1 at the end.');
+    add(!!key, 'Public key is filled in', 'Paste the anon / publishable key after SUPABASE_ANON_KEY in config/config.js.');
+    if (key) {
+      var secret = /^sb_secret_/.test(key), role = '';
+      try { role = JSON.parse(atob(key.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role || ''; } catch (e) { }
+      add(!secret && role !== 'service_role', 'It is the PUBLIC key (not the secret one)', 'You pasted a SECRET key. Remove it from config.js and from GitHub right away, then paste the anon / publishable key instead.');
+      add(/^(eyJ|sb_publishable_)/.test(key) && key.length > 30 && !/\s/.test(key), 'Key has the right shape', 'The key should start with eyJ or sb_publishable_ with no spaces or line breaks. Copy it again from Supabase → Project Settings → API.');
+    }
+    add(!!window.supabase, 'Supabase library loaded', 'js/vendor/supabase.js did not load. Make sure the whole js/vendor folder is on GitHub.');
+    return out;
+  };
+  Y.ping = function () {
+    var url = (Z.cfg.SUPABASE_URL || '').replace(/\/$/, ''), key = Z.cfg.SUPABASE_ANON_KEY || '';
+    if (!url || !key) return Promise.resolve({ ok: false, text: 'Not set up yet.' });
+    if (!navigator.onLine) return Promise.resolve({ ok: false, text: 'This phone has no internet right now.' });
+    return fetch(url + '/auth/v1/settings', { headers: { apikey: key } }).then(function (r) {
+      if (r.ok) return { ok: true, text: 'Supabase answered — the URL and key work.' };
+      if (r.status === 401 || r.status === 403) return { ok: false, text: 'Supabase refused the key (error ' + r.status + '). Copy the anon / publishable key again.' };
+      return { ok: false, text: 'Supabase answered with error ' + r.status + '. Check the Project URL.' };
+    }).catch(function () { return { ok: false, text: 'Could not reach that address. The Project URL is probably mistyped.' }; });
+  };
   Y.onState = function (fn) { subs.push(fn); };
   function set(s, err) { state = s; lastError = err || ''; subs.forEach(function (f) { try { f(s); } catch (e) { } }); }
   Y.refreshState = function () {

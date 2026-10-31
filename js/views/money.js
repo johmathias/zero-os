@@ -42,7 +42,7 @@
     html += '<section class="card rz" style="--n:6"><div class="head"><div class="label">' + ic('trending-up') + 'Monthly spending trend</div></div><div class="chartbox"><canvas id="c-trend"></canvas></div></section>';
     var bs = L.budgetStatus(Z.monthStart(Z.today())).slice(0, 3);
     html += '<section class="card rz" style="--n:7"><div class="head"><div class="label">' + ic('target') + 'Budgets this month</div><button class="link" data-act="mTab" data-v="budgets">Manage</button></div>' +
-      (bs.length ? '<div class="stack">' + bs.map(budgetLine).join('') + '</div>' : '<p class="muted small" style="margin-bottom:12px">Set a monthly budget to see how much you have left to spend.</p><button class="btn sm" data-act="bNew">' + ic('plus') + 'Create budget</button>') + '</section>';
+      (bs.length ? '<div class="stack">' + bs.map(budgetLine).join('') + '</div>' : '<p class="muted small" style="margin-bottom:12px">Set a monthly budget to see how much you have left to spend.</p><button class="btn sm" data-act="budNew">' + ic('plus') + 'Create budget</button>') + '</section>';
     var sv = S.all('savings');
     if (sv.length) html += '<section class="card rz" style="--n:8"><div class="head"><div class="label">' + ic('piggy-bank') + 'Savings</div><button class="link" data-act="mTab" data-v="savings">View</button></div><div class="stack">' + sv.slice(0, 3).map(function (g) { var p = L.savingsProgress(g); return '<div><div class="row between small" style="margin-bottom:6px"><span>' + esc(g.name) + '</span><b>' + Math.round(p.pct * 100) + '%</b></div>' + U.bar(p.pct * 100, GREEN) + '</div>'; }).join('') + '</div></section>';
     return html;
@@ -69,6 +69,7 @@
     var amt = isT ? Z.money(t.amount, { bare: true }) : (t.type === 'income' ? '+' : '−') + Z.money(t.amount, { bare: true });
     return '<button class="item tap" data-act="xEdit" data-id="' + t.id + '"><span class="avatar" style="--c:' + c + '">' + ic(isT ? 'arrow-left-right' : t.type === 'income' ? 'arrow-down-left' : 'arrow-up-right') + '</span><div class="grow" style="min-width:0"><div class="ti" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(t.desc || (isT ? 'Transfer' : t.category || 'Transaction')) + '</div><div class="su">' + (isT ? esc(L.accountName(t.accountId)) + ' → ' + esc(L.accountName(t.toAccountId)) : esc(t.category || '') + ' · ' + esc(L.accountName(t.accountId))) + '</div></div><div class="num" style="font-weight:680;color:' + (isT ? 'var(--c-schedule)' : t.type === 'income' ? 'var(--good)' : 'var(--ink)') + '">' + amt + '</div></button>';
   }
+  Z.txRow = txRow;
   function txTab() {
     if (!L.accounts().length) return noAccounts();
     var list = filtered(), html = '', accs = L.accounts(true), cats = Z.EXP_CATS.concat(Z.INC_CATS.filter(function (c) { return Z.EXP_CATS.indexOf(c) < 0; }));
@@ -124,7 +125,7 @@
     if (!L.accounts().length) return noAccounts();
     var ms = budMonth || Z.monthStart(Z.today()), st = L.budgetStatus(ms), html = '';
     html += '<div class="row between rz" style="--n:1"><button class="iconbtn sm glass" data-act="bMonth" data-d="-1" aria-label="Previous month">' + ic('chevron-left') + '</button><h3 style="font-size:19px">' + Z.fmtMonth(ms) + '</h3><button class="iconbtn sm glass" data-act="bMonth" data-d="1" aria-label="Next month">' + ic('chevron-right') + '</button></div>';
-    if (!st.length) return html + '<div class="card rz" style="--n:2">' + U.empty('target', 'No budgets yet', 'Set an overall monthly limit, or a limit for a category like Food or Transport.', { act: 'bNew', label: 'Create a budget' }) + '</div>';
+    if (!st.length) return html + '<div class="card rz" style="--n:2">' + U.empty('target', 'No budgets yet', 'Set an overall monthly limit, or a limit for a category like Food or Transport.', { act: 'budNew', label: 'Create a budget' }) + '</div>';
     var overall = st.filter(function (s) { return !s.b.category; })[0];
     if (overall) {
       var c = overall.over ? RED : overall.pct > .8 ? '#FFC93D' : GREEN;
@@ -132,7 +133,7 @@
         '<div class="grow"><div class="label">Overall budget</div><div class="mid" style="margin:6px 0 4px">' + (overall.over ? Z.money(-overall.left, { compact: true }) + ' over' : Z.money(overall.left, { compact: true }) + ' left') + '</div><div class="small muted">' + Z.money(overall.spent, { compact: true, bare: true }) + ' of ' + Z.money(overall.amount, { compact: true, bare: true }) + ' spent</div></div></div></section>';
     }
     html += '<section class="card rz" style="--n:3"><div class="head"><div class="label">' + ic('chart-column') + 'Budget progress</div></div><div class="chartbox sm" style="height:' + Math.max(130, st.length * 42) + 'px"><canvas id="c-bud"></canvas></div></section>';
-    html += '<section class="card rz" style="--n:4"><div class="head"><h3>Budgets</h3><button class="link" data-act="bNew">' + ic('plus') + 'Add</button></div><div class="list">' + st.map(function (s) {
+    html += '<section class="card rz" style="--n:4"><div class="head"><h3>Budgets</h3><button class="link" data-act="budNew">' + ic('plus') + 'Add</button></div><div class="list">' + st.map(function (s) {
       var c = s.over ? RED : s.pct > .8 ? '#FFC93D' : GREEN;
       return '<button class="item tap" data-act="bEdit" data-id="' + s.b.id + '" style="flex-direction:column;align-items:stretch;gap:8px"><div class="row between"><span class="ti">' + (s.b.category ? esc(s.b.category) : 'Overall monthly budget') + '</span><span class="small ' + (s.over ? 'bad' : 'dim') + '">' + (s.over ? Z.money(-s.left, { compact: true, bare: true }) + ' over' : Z.money(s.left, { compact: true, bare: true }) + ' left') + '</span></div>' + U.bar(s.pct * 100, c) + '<div class="row between xs dim"><span>' + Z.money(s.spent, { bare: true }) + ' spent</span><span>of ' + Z.money(s.amount, { bare: true }) + '</span></div></button>';
     }).join('') + '</div></section>';
@@ -163,7 +164,7 @@
       html += '<section class="card rz" style="--n:' + Math.min(i + 2, 8) + '"><div class="row" style="gap:16px">' + U.ring({ size: 88, stroke: 10, value: p.pct, color: GREEN, mid: '<div class="mid" style="position:static;font-size:19px;font-weight:720">' + Math.round(p.pct * 100) + '%</div>' }) +
         '<div class="grow"><h3>' + esc(g.name) + '</h3><div class="mid" style="font-size:20px;margin-top:6px">' + Z.money(p.saved, { compact: true }) + ' <span class="dim" style="font-size:14px;font-weight:600">of ' + Z.money(g.target, { compact: true, bare: true }) + '</span></div>' +
         '<div class="small dim" style="margin-top:4px">' + (p.pct >= 1 ? 'Goal reached' : (months ? 'About ' + Z.money(p.left / months, { compact: true }) + '/month to hit ' + Z.fmt(g.targetDate) : g.targetDate && days <= 0 ? 'Target date passed' : Z.money(p.left, { compact: true }) + ' to go')) + '</div></div></div>' +
-        '<div class="row" style="gap:8px;margin-top:14px"><button class="btn primary sm grow" data-act="sAdd" data-id="' + g.id + '">' + ic('plus') + 'Add money</button><button class="btn sm" data-act="sOpen" data-id="' + g.id + '">History</button><button class="iconbtn sm" data-act="sEdit" data-id="' + g.id + '" aria-label="Edit goal">' + ic('pencil') + '</button></div></section>';
+        '<div class="row" style="gap:8px;margin-top:14px"><button class="btn primary sm grow" data-act="sAdd" data-id="' + g.id + '">' + ic('plus') + 'Add money</button><button class="btn sm" data-act="svOpen" data-id="' + g.id + '">History</button><button class="iconbtn sm" data-act="sEdit" data-id="' + g.id + '" aria-label="Edit goal">' + ic('pencil') + '</button></div></section>';
     });
     return html;
   }
@@ -337,13 +338,13 @@
   A.aOpen = function (el) { var a = S.get('accounts', el.dataset.id); if (a) accountSheet(a); };
   A.aArch = function () { showArchAcc = !showArchAcc; Z.refresh(); };
   A.aRestore = function (el) { var a = S.get('accounts', el.dataset.id); if (a) { S.put('accounts', Object.assign({}, a, { archived: false })); U.toast('Account restored'); } };
-  A.bNew = function () { budgetForm(); };
+  A.budNew = function () { budgetForm(); };
   A.bEdit = function (el) { var b = S.get('budgets', el.dataset.id); if (b) budgetForm(b); };
   A.bMonth = function (el) { budMonth = Z.addMonths(budMonth || Z.monthStart(Z.today()), +el.dataset.d); Z.refresh(); };
   A.sNew = function () { savingForm(); };
   A.sEdit = function (el) { var g = S.get('savings', el.dataset.id); if (g) savingForm(g); };
   A.sAdd = function (el) { var g = S.get('savings', el.dataset.id); if (g) contributeForm(g); };
-  A.sOpen = function (el) { var g = S.get('savings', el.dataset.id); if (g) savingHistory(g); };
+  A.svOpen = function (el) { var g = S.get('savings', el.dataset.id); if (g) savingHistory(g); };
   A.mMenu = function (el) {
     U.menu(el, [{ icon: 'file-up', label: 'Import CSV', run: importCSV }, { icon: 'download', label: 'Export transactions (CSV)', run: exportCSV }, { icon: 'landmark', label: 'Add account', run: function () { F.account(); } }]);
   };

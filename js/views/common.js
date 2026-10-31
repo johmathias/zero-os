@@ -74,15 +74,22 @@
       fields:
         U.field('Title', U.input('etitle', e.title, { ph: 'e.g. Networking lecture', max: 80, autofocus: true }), 'etitle') +
         U.field('Type', '<div class="chips scroll" data-chips="ecat" data-multi="0">' + cats.map(function (c) { return '<button type="button" class="chip' + (c.v === (e.cat || defaults.cat || 'personal') ? ' on' : '') + '" data-v="' + c.v + '" style="--c:' + c.color + '"><i class="dot"></i>' + c.label + '</button>'; }).join('') + '</div>', 'ecat') +
-        U.field('Date', U.input('edate', e.date || defaults.date || Z.today(), { type: 'date' }) + F.dateChips('edate'), 'edate') +
+        U.field('Date', U.input('edate', e.date || defaults.date || Z.today(), { type: 'date' }) + F.dateChips('edate'), 'edate', 'If it repeats, this is the first day.') +
         '<div class="grid2">' + U.field('Starts', U.input('estart', e.start || defaults.start || '', { type: 'time' }), 'estart') + U.field('Ends', U.input('eend', e.end || '', { type: 'time' }), 'eend') + '</div>' +
         '<div class="xs dim" style="margin-top:-8px">Leave both empty for an all-day item.</div>' +
-        U.field('Repeats', U.select('erep', [{ v: 'none', label: 'Does not repeat' }, { v: 'daily', label: 'Every day' }, { v: 'weekdays', label: 'Weekdays (Mon–Fri)' }, { v: 'weekly', label: 'Every week' }, { v: 'monthly', label: 'Every month' }], rep), 'erep') +
+        U.field('Repeats', U.select('erep', [{ v: 'none', label: 'Only once' }, { v: 'weekly', label: 'Every week — for timetables' }, { v: 'daily', label: 'Every day' }, { v: 'weekdays', label: 'Weekdays (Mon–Fri)' }, { v: 'monthly', label: 'Every month' }], rep), 'erep') +
+        '<div id="edaysbox" class="' + (rep === 'weekly' && !e.id ? '' : 'hide') + '">' + U.field('On which days?', U.dayPicker('edays', [Z.dow(e.date || defaults.date || Z.today())]), 'edays', 'Pick every day this happens each week. One event is made for each.') + '</div>' +
+        (e.id && rep !== 'none' ? '<div class="xs dim" style="margin-top:-6px">Changes here apply to every week. To change one day only, open that day, delete just that one, and add it again.</div>' : '') +
         '<div id="euntilbox" class="' + (rep === 'none' ? 'hide' : '') + '">' + U.field('Repeat until (optional)', U.input('euntil', e.until || '', { type: 'date' }), 'euntil') + '</div>' +
         U.field('Notes (optional)', U.textarea('enotes', e.notes, 'Room, lecturer, what to bring…', 3), 'enotes') +
         U.switchRow('erem', 'Remind me', !!e.reminder, 'Alert before it starts'),
       onMount: function (root) {
-        Z.$('#erep', root).addEventListener('change', function () { Z.$('#euntilbox', root).classList.toggle('hide', this.value === 'none'); });
+        var rp = Z.$('#erep', root);
+        function showRep() { Z.$('#euntilbox', root).classList.toggle('hide', rp.value === 'none'); Z.$('#edaysbox', root).classList.toggle('hide', !(rp.value === 'weekly' && !e.id)); }
+        rp.addEventListener('change', showRep);
+        // a new class usually repeats weekly: suggest it
+        if (!e.id) root.addEventListener('click', function (ev) { var c = ev.target.closest('[data-chips="ecat"] .chip'); if (c && c.dataset.v === 'class' && rp.value === 'none') { rp.value = 'weekly'; showRep(); } });
+        if (!e.id && (defaults.cat === 'class') && rp.value === 'none') { rp.value = 'weekly'; showRep(); }
       },
       onSubmit: function (root) {
         var title = U.val(root, 'etitle'), date = U.val(root, 'edate'), st = U.val(root, 'estart'), en = U.val(root, 'eend');
@@ -92,8 +99,16 @@
         if (st && en && Z.toMin(en) <= Z.toMin(st)) { U.fail(root, 'eend', 'End time must be after the start.'); return false; }
         var repeat = U.val(root, 'erep'), until = U.val(root, 'euntil');
         if (repeat !== 'none' && until && until < date) { U.fail(root, 'euntil', 'Must be after the first date.'); return false; }
-        S.put('events', Object.assign({}, e, { title: title, cat: U.chipVal(root, 'ecat') || 'personal', date: date, start: st, end: en, repeat: repeat, until: repeat === 'none' ? '' : until, notes: U.val(root, 'enotes'), reminder: U.switchVal(root, 'erem') }));
-        U.toast(e.id ? 'Event updated' : 'Event added');
+        var base = { title: title, cat: U.chipVal(root, 'ecat') || 'personal', start: st, end: en, repeat: repeat, until: repeat === 'none' ? '' : until, notes: U.val(root, 'enotes'), reminder: U.switchVal(root, 'erem') };
+        var days = (!e.id && repeat === 'weekly') ? U.dayVal(root, 'edays') : [];
+        if (days.length > 1 || (days.length === 1 && days[0] !== Z.dow(date))) {
+          // timetable: one weekly event per chosen weekday, starting on the first matching date
+          S.batch(function () { days.forEach(function (wd) { var d0 = date, k = 0; while (Z.dow(d0) !== wd && k++ < 7) d0 = Z.addDays(d0, 1); S.put('events', Object.assign({}, base, { date: d0 })); }); });
+          U.toast(days.length + ' weekly events added');
+        } else {
+          S.put('events', Object.assign({}, e, base, { date: date }));
+          U.toast(e.id ? 'Event updated' : 'Event added');
+        }
         if (Z.views[Z.current()] && Z.current() === 'schedule' && Z.views.schedule.goto) Z.views.schedule.goto(date);
       },
       onDelete: e.id ? function (api) { F.deleteEvent(e, defaults.date || e.date, api); } : null

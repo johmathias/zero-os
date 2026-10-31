@@ -11,14 +11,14 @@
 
   function cloudCard() {
     var Y = Z.sync, u = Y.user(), st = Y.state();
-    if (!Y.configured()) return '<section class="card rz" style="--n:2"><div class="head"><div class="label">' + ic('cloud-off') + 'Cloud sync</div></div><p class="muted small">ZERO OS is running in <b>offline mode</b> — all your data is saved on this device. To sync between devices, add your Supabase keys in <code>config/config.js</code> (see README, step 2).</p></section>';
+    if (!Y.configured()) return '<section class="card rz" style="--n:2"><div class="head"><div class="label">' + ic('cloud-off') + 'Cloud sync</div><span class="statuspill"><i></i>Offline mode</span></div><p class="muted small" style="margin-bottom:14px">The app can’t see your Supabase keys, so it is saving only on this phone. Tap the button to find out why — it checks each step for you.</p><button class="btn primary block" data-act="stCheck">' + ic('activity') + 'Check connection</button></section>';
     if (!u) return '<section class="card rz" style="--n:2"><div class="head"><div class="label">' + ic('cloud') + 'Cloud sync</div></div><p class="muted small" style="margin-bottom:14px">Sign in to back up and sync across your devices. Needs internet. Your records are private to your account.</p><div class="row" style="gap:10px"><button class="btn primary grow" data-act="stAuth" data-arg="in">Sign in</button><button class="btn grow" data-act="stAuth" data-arg="up">Create account</button></div></section>';
     return '<section class="card rz" style="--n:2"><div class="head"><div class="label">' + ic('cloud') + 'Cloud sync</div>' + Z.syncPill() + '</div>' +
       '<div class="list">' + row('user', esc(u.email || 'Signed in'), 'Signed in · last sync ' + ago(Y.lastSyncAt() || Z.meta.get('lastSyncAt', 0))) +
       row('refresh-cw', 'Sync now', pendingCount ? pendingCount + ' change' + (pendingCount > 1 ? 's' : '') + ' waiting to upload' : 'Everything is up to date', '', 'stSync') +
       (Y.conflicts().length ? row('circle-alert', 'Review sync conflicts', Y.conflicts().length + ' older version' + (Y.conflicts().length > 1 ? 's' : '') + ' kept safe', '<span class="badge" style="--c:var(--warn)">' + Y.conflicts().length + '</span>', 'stConf') : '') + '</div>' +
       (Y.error() ? '<div class="small bad" style="margin-top:10px">' + esc(Y.error()) + '</div>' : '') +
-      '<div class="row" style="gap:10px;margin-top:14px"><button class="btn grow" data-act="stOut">' + ic('log-out') + 'Sign out</button></div></section>';
+      '<div class="row" style="gap:10px;margin-top:14px"><button class="btn grow" data-act="stCheck">' + ic('activity') + 'Check</button><button class="btn grow" data-act="stOut">' + ic('log-out') + 'Sign out</button></div></section>';
   }
 
   function pushRow() {
@@ -142,6 +142,18 @@
   };
   A.stWipe = function () {
     U.confirm({ title: 'Delete all data on this device?', text: 'Export a backup first if you want to keep anything. Cloud data is not touched.', ok: 'Delete everything', danger: true }).then(function (y) { if (!y) return; U.confirm({ title: 'Really delete?', text: 'This cannot be undone.', ok: 'Yes, delete', danger: true }).then(function (y2) { if (y2) S.wipe().then(function () { location.hash = '#/home'; location.reload(); }); }); });
+  };
+  A.stCheck = function () {
+    var api = U.sheet({ title: 'Cloud connection', body: '<div class="stack" id="cchk"></div>' });
+    var box = Z.$('#cchk', api.el);
+    function draw(items, extra) {
+      box.innerHTML = items.map(function (c) { return '<div class="row" style="align-items:flex-start;gap:12px"><span style="color:' + (c.ok ? 'var(--good)' : 'var(--bad)') + ';margin-top:2px">' + ic(c.ok ? 'circle-check' : 'circle-alert') + '</span><div class="grow"><div style="font-weight:620">' + esc(c.title) + '</div>' + (!c.ok && c.fix ? '<div class="small muted" style="margin-top:3px">' + esc(c.fix) + '</div>' : '') + '</div></div>'; }).join('') + (extra || '');
+    }
+    var items = Z.sync.diagnose(); draw(items);
+    var bad = items.filter(function (c) { return !c.ok; });
+    if (bad.length) { box.insertAdjacentHTML('beforeend', '<p class="small dim">After you fix config.js on GitHub, wait for the green tick in Actions, then close and reopen the app (swipe it away first).</p>'); return; }
+    box.insertAdjacentHTML('beforeend', '<div class="small dim" id="cping">Contacting Supabase…</div>');
+    Z.sync.ping().then(function (r) { var el = Z.$('#cping', box); if (el) el.outerHTML = '<div class="row" style="gap:12px;align-items:flex-start"><span style="color:' + (r.ok ? 'var(--good)' : 'var(--bad)') + '">' + ic(r.ok ? 'circle-check' : 'circle-alert') + '</span><div class="grow" style="font-weight:620">' + esc(r.text) + '</div></div>'; });
   };
   A.stWipeCloud = function () { U.confirm({ title: 'Delete your cloud data?', text: 'Removes all your records from Supabase. Data on this device stays.', ok: 'Delete cloud data', danger: true }).then(function (y) { if (y) Z.sync.deleteCloudData().then(function () { U.toast('Cloud data deleted'); }).catch(function (e) { U.toast(e.message, 'err'); }); }); };
 

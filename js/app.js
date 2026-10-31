@@ -21,7 +21,7 @@
   /* ---------- navigation ---------- */
   function buildShell() {
     document.body.insertAdjacentHTML('afterbegin',
-      '<div class="atmos" aria-hidden="true"><i></i><i></i><i></i></div>' +
+      '<div class="atmos" aria-hidden="true"><i></i><i></i><i></i></div><div class="topfade" aria-hidden="true"></div>' +
       '<main id="app"><div id="view"></div></main>' +
       '<nav class="tabbar glass" id="tabbar" aria-label="Main"><div class="ind"></div>' +
       TABS.map(function (t) { return '<a href="#/' + t.id + '" data-tab="' + t.id + '" aria-label="' + t.label + '">' + ic(t.icon) + '<span>' + t.label + '</span></a>'; }).join('') + '</nav>' +
@@ -51,8 +51,20 @@
     var f = v.fab ? (v.fabIcon || 'plus') : null;
     fab.classList.toggle('hide', !f); if (f) fab.innerHTML = ic(f);
     if (Z.entering && !same) window.scrollTo(0, 0); else if (!Z.entering || keepScroll) window.scrollTo(0, y);
+    Z.badges();
     document.title = (name === 'home' ? '' : (v.title || name) + ' · ') + 'ZERO OS';
   }
+  // small red numbers / dots on tabs for things that need a look
+  Z.badges = function () {
+    var list = []; try { list = Z.logic.attention(); } catch (e) { }
+    var by = {}; list.forEach(function (x) { by[x.tab] = (by[x.tab] || 0) + (x.count || 1); });
+    Z.$$('#tabbar a').forEach(function (el) {
+      var n = by[el.dataset.tab] || 0, b = Z.$('.nb', el);
+      if (!n || el.dataset.tab === current) { if (b) b.remove(); return; }
+      if (!b) { b = document.createElement('b'); b.className = 'nb'; el.appendChild(b); }
+      b.textContent = n > 9 ? '9+' : n; b.classList.toggle('dot', false);
+    });
+  };
   Z.refresh = function (enter) { render(current, enter === true, true); };
   function onRoute() { U.closeTopSheet(); render(routeName(), true); }
 
@@ -62,6 +74,7 @@
     if (v.onChange && v.onChange(cols) === false) return;
     clearTimeout(rerenderTimer); rerenderTimer = setTimeout(function () { render(current, false, true); }, 30);
   });
+  document.addEventListener('zero:tick', function () { Z.badges(); });
   document.addEventListener('zero:tick', function () { if (current === 'home' || current === 'schedule') { var v = Z.views[current]; if (!v.onTick || v.onTick() !== false) Z.refresh(); } });
   document.addEventListener('zero:login', function () { Z.refresh(); });
   Z.sync.onState(function () { var el = Z.$('[data-syncpill]'); if (el) el.outerHTML = Z.syncPill(); });
@@ -106,6 +119,11 @@
       });
     });
   }
+
+  /* ---------- behave like an app: no pinch-zoom, no double-tap zoom ---------- */
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (n) { document.addEventListener(n, function (e) { e.preventDefault(); }, { passive: false }); });
+  document.addEventListener('touchmove', function (e) { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  var lastTap = 0; document.addEventListener('touchend', function (e) { var t = Date.now(); if (t - lastTap < 320 && !(e.target.closest && e.target.closest('input,textarea,select'))) e.preventDefault(); lastTap = t; }, { passive: false });
 
   /* ---------- first-run welcome ---------- */
   function welcome() {
