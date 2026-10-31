@@ -1,10 +1,10 @@
 /* ZERO OS service worker — makes the app open instantly and work offline.
-   Strategy: cache the app files on install; serve from cache first, update in the background.
+   Strategy: cache the app files on install; load from the network first (always fresh), use the saved copy when offline.
    Supabase / network API calls are never cached. Bump VERSION when you change files. */
-const VERSION = 'zero-os-v2';
+const VERSION = 'zero-os-v3';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest', 'config/config.js', 'css/styles.css',
-  'js/icons.js', 'js/core.js', 'js/ui.js', 'js/logic.js', 'js/sync.js', 'js/reminders.js', 'js/push.js', 'js/app.js',
+  'js/icons.js', 'js/core.js', 'js/ui.js', 'js/logic.js', 'js/sync.js', 'js/reminders.js', 'js/push.js', 'js/motivation.js', 'js/app.js',
   'js/vendor/chart.umd.min.js', 'js/vendor/supabase.js',
   'js/views/common.js', 'js/views/habits.js', 'js/views/schedule.js', 'js/views/plans.js', 'js/views/money.js',
   'js/views/progress.js', 'js/views/journal.js', 'js/views/home.js', 'js/views/settings.js',
@@ -17,10 +17,21 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin) return;       // let Supabase etc. go straight to the network
-  e.respondWith(caches.match(req, { ignoreSearch: true }).then(hit => {
-    const net = fetch(req).then(res => { if (res && res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); } return res; }).catch(() => hit);
-    return hit || net.then(r => r || caches.match('index.html'));
-  }));
+  // Network first (so updates and config changes show up straight away); fall back to the saved copy when offline or slow.
+  e.respondWith((async () => {
+    const cache = await caches.open(VERSION);
+    try {
+      const res = await Promise.race([
+        fetch(req, { cache: 'no-cache' }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('slow')), 4000))
+      ]);
+      if (res && res.ok) cache.put(req, res.clone());
+      return res;
+    } catch (_) {
+      const hit = await caches.match(req, { ignoreSearch: true });
+      return hit || (req.mode === 'navigate' ? caches.match('index.html') : Response.error());
+    }
+  })());
 });
 // Push alerts sent by the server (works even when the app is closed).
 self.addEventListener('push', e => {

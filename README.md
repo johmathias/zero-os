@@ -48,7 +48,7 @@ git push -u origin main
 3. Go to the **Actions** tab. The "Deploy to GitHub Pages" job runs by itself (about 1 minute). When it has a green tick, open **Settings → Pages** to see your address:
    `https://johmathias.github.io/zero-os/`
 
-Every time you push a change, the site updates automatically. After changing files, open `sw.js` and raise the number in `zero-os-v2` (to `v3`, `v4`…) so phones pick up the update.
+Every time you push a change, the site updates automatically. After changing files, open `sw.js` and the app now loads fresh files whenever the phone is online, so updates show up by themselves. (If you ever need to force it, raise the number in `sw.js`: `zero-os-v3` → `v4`.)
 
 **C. Install on your iPhone**
 1. Open your address in **Safari**.
@@ -86,7 +86,10 @@ Skip this if one device is enough.
 **E. Send the change to GitHub**
 Upload the edited `config/config.js` (Add file → Upload files, or `git add . && git commit -m "config" && git push`). Wait for the green tick in **Actions**.
 
-**F. Make your account**
+**F. Not working? Use the built-in check**
+Open the app → **Settings → Cloud sync → Check connection**. It ticks each step (file found, URL, key, library, Supabase reachable) and tells you what to fix. Swipe the app away and reopen it after changing `config.js`.
+
+**G. Make your account**
 Open the app → **Settings → Cloud sync → Create account**. Confirm the email, then sign in. Do the same on your iPhone; your data appears on both.
 
 How sync behaves:
@@ -165,7 +168,7 @@ tools/generate-vapid-keys.html   makes your push keys (runs on your computer)
 css/styles.css          the whole design system
 assets/icons/           app icons
 js/
-  core.js  logic.js  ui.js  sync.js  reminders.js  push.js  app.js
+  core.js  logic.js  ui.js  sync.js  reminders.js  push.js  motivation.js  app.js
   views/                one file per screen + shared forms
   vendor/               Chart.js and supabase-js (bundled so it works offline)
 ```
@@ -177,3 +180,7 @@ Icons are from Lucide (ISC licence).
 Automated browser tests: all screens at phone width (no sideways scrolling), balances after add / edit / delete, transfers excluded from income and expenses, form validation, habit / task / event actions, weekly repeats, slip handling that keeps progress, the 100-day challenge, backup and restore, data surviving reload, opening offline, opening straight from the file, running from a GitHub-Pages-style sub-path, and sync (upload, download, conflict, failed upload, delete) against a simulated Supabase.
 Push: keys are valid and match; the send function's logic (due / future / stale / duplicate / expired phone / temporary failure) against mocks; the app's turn on, schedule, update and turn off flow with a simulated phone.
 **Not tested here:** a real Supabase project, real iPhone Safari, and real delivery from Apple or Google. Please try Test push on your phone.
+
+## Daily messages
+
+Home shows one of 100+ short encouraging messages each day (it changes at midnight). They are written into `js/motivation.js`, so they work offline; nothing is downloaded. Edit that file to add your own. **I need a pause** opens a 10-minute breathing timer.
